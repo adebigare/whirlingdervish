@@ -1,0 +1,3 @@
+[submodule "wii-u-gc-adapter"]
+	path = wii-u-gc-adapter
+	url = https://github.com/ToadKing/wii-u-gc-adapter
