@@ -18,8 +18,8 @@ import numpy, socket
 
 class PowerSupply(object):
     def __init__(self, address, port=6038, count=50):
-        self._count = count
         self.rgb = numpy.zeros((count, 3), 'float')
+        self._count = count
         self._scaled = numpy.empty((count, 3), 'ubyte')
         self._xmit = numpy.zeros(533, 'ubyte')
         self._xmit[:8] = [4,1,220,74,1,0,1,1]
@@ -42,6 +42,7 @@ class PowerSupply(object):
 
     # single channel (0, xmit[11]) supported for now
     def _send(self):
-        self._xmit[21:171] = numpy.ravel(self._scaled)
+        upper = 21 + (self._count * 3)
+        self._xmit[21:upper] = numpy.ravel(self._scaled)
         self._sock.sendall(self._xmit)
 
