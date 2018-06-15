@@ -20,8 +20,7 @@ import numpy, socket
 unscaled = numpy.empty((1, 50, 3), 'float')
 scaled = numpy.empty((1, 50, 3), 'ubyte')
 xmit = numpy.zeros(171, 'ubyte')
-xmit[:8], xmit[15:21] = [4,1,220,74,1,0,1,1], [255,255,255,255,255, 255]
-#xmit[:8], xmit[20:24] = [4,1,220,74,1,0,1,1], [255,255,255,255]
+xmit[:8], xmit[15:21] = [4,1,220,74,1,0,1,1], [255,255,255,255,255,255]
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
 sock.connect(('192.168.0.101', 6038))
 
@@ -29,6 +28,7 @@ sock.connect(('192.168.0.101', 6038))
 def send(chan, data):
     xmit[11], xmit[21:] = chan, numpy.ravel(data)
     sock.sendall(xmit)
+
 def scale(arr):
     return numpy.minimum(256 * numpy.maximum(arr, 0), 255)
 
@@ -39,8 +39,5 @@ def display(pixels):
     Entries of pixels are floats between 0 and 1.
     """
     unscaled[:] = pixels
-    #scaled[0::2] = scale(unscaled[0::2, ::-1])
-    #scaled[1::2] = scale(unscaled[1::2])
     scaled = scale(unscaled)
     send(0, scaled)
-    #send(2, scaled)
