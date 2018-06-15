@@ -17,27 +17,33 @@
 import numpy, socket
 
 # initialization
-unscaled = numpy.empty((1, 50, 3), 'float')
-scaled = numpy.empty((1, 50, 3), 'ubyte')
-xmit = numpy.zeros(171, 'ubyte')
-xmit[:8], xmit[15:21] = [4,1,220,74,1,0,1,1], [255,255,255,255,255,255]
+unscaled = numpy.zeros((50, 3), 'float')
+scaled = numpy.empty((50, 3), 'ubyte')
+xmit = numpy.zeros(533, 'ubyte')
+xmit[:8], xmit[15:21] = [4,1,220,74,1,0,1,1], [0,255,255,255,255,0]
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
 sock.connect(('192.168.0.101', 6038))
 
 # internal utilities
-def send(chan, data):
-    xmit[11], xmit[21:] = chan, numpy.ravel(data)
+def _send(chan, data):
+    xmit[11], xmit[21:171] = chan, numpy.ravel(data)
     sock.sendall(xmit)
 
-def scale(arr):
+def _scale(arr):
     return numpy.minimum(256 * numpy.maximum(arr, 0), 255)
 
 # the public-facing function
-def display(pixels):
-    """
-    pixels is broadcast to shape (10, 10, 3).
-    Entries of pixels are floats between 0 and 1.
-    """
-    unscaled[:] = pixels
-    scaled = scale(unscaled)
-    send(0, scaled)
+
+def display():
+    scaled = _scale(unscaled)
+    _send(0, scaled)
+
+def set_all(color):
+    unscaled[:] = color
+
+def set_pixel(index, color):
+    unscaled[index] = color
+
+def clear():
+    unscaled.fill(0)
+

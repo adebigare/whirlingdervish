@@ -6,7 +6,17 @@ import lights, colorsys, time
 
 hue = 0
 while True:
-    hue = (hue + .004) % 1
+    hue = (hue + .1) % 1
     color = colorsys.hsv_to_rgb(hue, 1, 1)
-    lights.display(color)
-    time.sleep(.03)
+#    lights.rgb.fill(0)
+#    for i in range(50):
+#       rgb[i] = color
+#       lights.display(rgb)
+
+    lights.set_all(color)
+    lights.display()
+    time.sleep(0.5)
+
+    lights.clear()
+    lights.display()
+    time.sleep(0.5)
