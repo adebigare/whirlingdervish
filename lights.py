@@ -16,34 +16,32 @@
 
 import numpy, socket
 
-# initialization
-unscaled = numpy.zeros((50, 3), 'float')
-scaled = numpy.empty((50, 3), 'ubyte')
-xmit = numpy.zeros(533, 'ubyte')
-xmit[:8], xmit[15:21] = [4,1,220,74,1,0,1,1], [0,255,255,255,255,0]
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
-sock.connect(('192.168.0.101', 6038))
+class PowerSupply(object):
+    def __init__(self, address, port=6038, count=50):
+        self._count = count
+        self.rgb = numpy.zeros((count, 3), 'float')
+        self._scaled = numpy.empty((count, 3), 'ubyte')
+        self._xmit = numpy.zeros(533, 'ubyte')
+        self._xmit[:8] = [4,1,220,74,1,0,1,1]
+        self._xmit[15:21] = [0,255,255,255,255,0]
+        self._sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, 0)
+        self._sock.connect((address, port))
 
-# internal utilities
-def _send(chan, data):
-    xmit[11], xmit[21:171] = chan, numpy.ravel(data)
-    sock.sendall(xmit)
+    def update(self):
+        self._scaled = numpy.minimum(256 * numpy.maximum(self.rgb, 0), 255)
+        self._send()
 
-def _scale(arr):
-    return numpy.minimum(256 * numpy.maximum(arr, 0), 255)
+    def set_all(self, color):
+        self.rgb[:] = color
 
-# the public-facing function
+    def set_pixel(self, index, color):
+        self.rgb[index] = color
 
-def display():
-    scaled = _scale(unscaled)
-    _send(0, scaled)
+    def clear(self):
+        self.rgb.fill(0)
 
-def set_all(color):
-    unscaled[:] = color
-
-def set_pixel(index, color):
-    unscaled[index] = color
-
-def clear():
-    unscaled.fill(0)
+    # single channel (0, xmit[11]) supported for now
+    def _send(self):
+        self._xmit[21:171] = numpy.ravel(self._scaled)
+        self._sock.sendall(self._xmit)
 

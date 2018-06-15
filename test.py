@@ -4,19 +4,13 @@
 
 import lights, colorsys, time
 
+pds = lights.PowerSupply('192.168.0.101')
+
 hue = 0
+val = 0
 while True:
-    hue = (hue + .1) % 1
-    color = colorsys.hsv_to_rgb(hue, 1, 1)
-#    lights.rgb.fill(0)
-#    for i in range(50):
-#       rgb[i] = color
-#       lights.display(rgb)
-
-    lights.set_all(color)
-    lights.display()
-    time.sleep(0.5)
-
-    lights.clear()
-    lights.display()
-    time.sleep(0.5)
+    val = (val + .01) % 1
+    color = colorsys.hsv_to_rgb(hue, 1, val)
+    pds.set_all(color)
+    pds.update()
+    time.sleep(0.05)
