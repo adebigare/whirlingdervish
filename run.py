@@ -14,7 +14,6 @@ from Queue import Queue
 # Constants
 
 FRAMERATE = 25.0
-NUM_LIGHTS = 50
 PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_Adapter-event-joystick"
 
 # Input

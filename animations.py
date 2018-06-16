@@ -1,8 +1,6 @@
 import numpy
 import colorsys
 
-NUM_LIGHTS=50
-
 class Animation(object):
     def __init__(self):
         self.done = False
@@ -61,7 +59,7 @@ class Chaser(Animation):
 
     def update(self, pixels):
         tail = 8
-        if self._idx >= NUM_LIGHTS - 1:
+        if self._idx >= pixels.shape[0] - 1:
             self._dir = -1
         elif self._idx <= -tail and self._dir < 0:
             self.done = True 
@@ -69,7 +67,7 @@ class Chaser(Animation):
 
         for i in range(tail):
             idx = self._idx - (i * self._dir)
-            if idx < 0 or idx >= NUM_LIGHTS:
+            if idx < 0 or idx >= pixels.shape[0]:
                 continue
             val = pow(0.6,i)
             color = colorsys.hsv_to_rgb(self._hue, 1.0, val)
@@ -80,4 +78,4 @@ class Chaser(Animation):
 
     @property
     def _idx(self):
-        return int(self._fidx)
+        return int(self._fidxt)
