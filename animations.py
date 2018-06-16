@@ -78,4 +78,4 @@ class Chaser(Animation):
 
     @property
     def _idx(self):
-        return int(self._fidxt)
+        return int(self._fidx)
