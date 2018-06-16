@@ -2,6 +2,7 @@
 
 #also written by dlaw. see license in lights.py
 
+import numpy
 import colorsys
 from time import sleep
 from lights import PowerSupply
@@ -12,6 +13,7 @@ from Queue import Queue
 # Constants
 
 FRAMERATE = 30.0
+NUM_LIGHTS = 50
 PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_Adapter-event-joystick"
 
 # Animations
@@ -30,10 +32,11 @@ class Flash(Animation):
         self._val = 1.0
 
     def update(self, pixels):
-        pixels[:] = self._val
+        adjust = self._val
         self._val *= self._decay
         if self._val <= 0.01:
             self.done = True
+        return pixels + adjust
 
 class Chaser(Animation):
     def __init__(self, hue, speed):
@@ -43,6 +46,10 @@ class Chaser(Animation):
         self._fidx = 0.0
 
     def update(self, pixels):
+        if self._idx >= NUM_LIGHTS:
+            self.done = True 
+            return pixels
+
         for i in range(3):
             idx = self._idx - i
             if idx < 0:
@@ -50,9 +57,9 @@ class Chaser(Animation):
             val = 1.0 - (i * 0.4)
             color = colorsys.hsv_to_rgb(self._hue, 1, val)
             pixels[idx] = color
+
         self._fidx += self._speed
-        if self._idx >= 50:
-            self.done = True 
+        return pixels
 
     @property
     def _idx(self):
@@ -70,35 +77,38 @@ class Button:
 
 def input_loop():
     pad = InputDevice(PAD_PATH)
-    states = {
-        Button.UP: False, Button.RIGHT: False,
-        Button.DOWN: False, Button.LEFT : False
-        }
     for event in pad.read_loop():
         if event.type == ecodes.EV_KEY:
-            on = event.value == 1
-            if event.code == Button.UP:
-                states[Button.UP] = on
-                if on:
-                    inputs.put(Chaser(0.0, 0.75))
-            if event.code == Button.RIGHT:
-                states[Button.RIGHT] = on
-                if on:
-                    if states[Button.LEFT]:
-                        inputs.put(Flash())
-                    else:
-                        inputs.put(Chaser(0.2, 0.5))
-            if event.code == Button.DOWN:
-                states[Button.DOWN] = on
-                if on:
-                    inputs.put(Chaser(0.4, 1.0))
-            if event.code == Button.LEFT:
-                states[Button.LEFT] = on
-                if on:
-                    if states[Button.RIGHT]:
-                        inputs.put(Flash())
-                    else:
-                        inputs.put(Chaser(0.6, 1.5))
+            inputs.put((event.code, event.value))
+
+def process_inputs(inputs):
+    animations = []
+
+    up = inputs.get(Button.UP, False)
+    down = inputs.get(Button.DOWN, False)
+    left = inputs.get(Button.LEFT, False)
+    right = inputs.get(Button.RIGHT, False)
+
+    if up:
+        animations.append(Chaser(0.0, 0.5))
+    if down:
+        animations.append(Chaser(0.2, 0.75))
+    if left and right:
+        animations.append(Flash())
+    elif left:
+        animations.append(Chaser(0.4, 1.0))
+    elif right:
+        animations.append(Chaser(0.6, 1.5))
+
+    return animations
+
+def render(pds, animations):
+    pds.clear()
+    rgb = pds.rgb
+    for anim in animations:
+        rgb = anim.update(rgb)
+    pds.rgb = rgb
+    pds.update()
 
 def main():
     pds = PowerSupply('192.168.0.101')
@@ -109,13 +119,21 @@ def main():
     animations = []
 
     while True:
-        if not inputs.empty():
-            animations.append(inputs.get_nowait())
-        pds.clear()
-        for anim in animations:
-            anim.update(pds.rgb)
+        # prune finished animations
         animations = [anim for anim in animations if not anim.done]
-        pds.update()
+
+        # get current button events
+        current_inputs = {}
+        while not inputs.empty():
+            (btn, val) = inputs.get_nowait()
+            current_inputs[btn] = val
+
+        # add any new animations based on button states
+        new_animations = process_inputs(current_inputs)
+        animations.extend(new_animations)
+
+        # render the animations
+        render(pds, animations)
         sleep(1.0/FRAMERATE)
 
 if __name__== "__main__":
