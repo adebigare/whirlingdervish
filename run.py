@@ -26,9 +26,10 @@ class Animation(object):
         raise NotImplementedError
 
 class Flash(Animation):
-    def __init__(self, hue, offset=0, stride=1, decay=0.85):
+    def __init__(self, hue, sat=0.3, offset=0, stride=1, decay=0.85):
         Animation.__init__(self)
         self._hue = hue
+        self._sat = sat
         self._offset = offset
         self._stride = stride
         self._decay = decay
@@ -36,7 +37,7 @@ class Flash(Animation):
 
     def update(self, pixels):
         view = pixels[self._offset::self._stride]
-        color = colorsys.hsv_to_rgb(self._hue, 0.3, self._val)
+        color = colorsys.hsv_to_rgb(self._hue, self._sat, self._val)
         view += color
         self._val *= self._decay
         if self._val <= 0.01:
@@ -148,7 +149,7 @@ def main():
     input_thread.daemon = True
     input_thread.start()
 
-    animations = []
+    animations = [Flash(0.3, 0.7, decay=0.95)]
 
     while True:
         # prune finished animations
