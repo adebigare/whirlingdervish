@@ -6,7 +6,6 @@ import colorsys
 from time import sleep
 from lights import PowerSupply
 from evdev import InputDevice, categorize, ecodes
-from select import select
 from threading import Thread
 from Queue import Queue
 
