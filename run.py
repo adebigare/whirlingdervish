@@ -16,9 +16,28 @@ PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_A
 
 # Animations
 
-class Chaser(object):
-    def __init__(self, hue, speed):
+class Animation(object):
+    def __init__(self):
         self.done = False
+
+    def update(self, pixels):
+        raise NotImplementedError
+
+class Flash(Animation):
+    def __init__(self, decay=0.85):
+        Animation.__init__(self)
+        self._decay = 0.85
+        self._val = 1.0
+
+    def update(self, pixels):
+        pixels[:] = self._val
+        self._val *= self._decay
+        if self._val <= 0.01:
+            self.done = True
+
+class Chaser(Animation):
+    def __init__(self, hue, speed):
+        Animation.__init__(self)
         self._hue = hue
         self._speed = speed
         self._fidx = 0.0
@@ -43,21 +62,43 @@ class Chaser(object):
 
 inputs = Queue()
 
-def handle_event(event):
-    if event.type == ecodes.EV_KEY and event.value == 1:
-        if event.code == 300: #up
-            inputs.put((0.0, 0.6))
-        if event.code == 301: #right
-            inputs.put((0.2, 0.3))
-        if event.code == 302: #down
-            inputs.put((0.4, 1.0))
-        if event.code == 303: #left
-            inputs.put((0.6, 1.5))
+class Button:
+    UP = 300
+    RIGHT = 301
+    DOWN = 302
+    LEFT = 303
 
 def input_loop():
     pad = InputDevice(PAD_PATH)
+    states = {
+        Button.UP: False, Button.RIGHT: False,
+        Button.DOWN: False, Button.LEFT : False
+        }
     for event in pad.read_loop():
-        handle_event(event)
+        if event.type == ecodes.EV_KEY:
+            on = event.value == 1
+            if event.code == Button.UP:
+                states[Button.UP] = on
+                if on:
+                    inputs.put(Chaser(0.0, 0.75))
+            if event.code == Button.RIGHT:
+                states[Button.RIGHT] = on
+                if on:
+                    if states[Button.LEFT]:
+                        inputs.put(Flash())
+                    else:
+                        inputs.put(Chaser(0.2, 0.5))
+            if event.code == Button.DOWN:
+                states[Button.DOWN] = on
+                if on:
+                    inputs.put(Chaser(0.4, 1.0))
+            if event.code == Button.LEFT:
+                states[Button.LEFT] = on
+                if on:
+                    if states[Button.RIGHT]:
+                        inputs.put(Flash())
+                    else:
+                        inputs.put(Chaser(0.6, 1.5))
 
 def main():
     pds = PowerSupply('192.168.0.101')
@@ -65,16 +106,15 @@ def main():
     input_thread.daemon = True
     input_thread.start()
 
-    chasers = [] 
+    animations = []
 
     while True:
         if not inputs.empty():
-            (hue, speed) = inputs.get_nowait() 
-            chasers.append(Chaser(hue, speed))
+            animations.append(inputs.get_nowait())
         pds.clear()
-        for chaser in chasers:
-            chaser.update(pds.rgb)
-        chasers = [chaser for chaser in chasers if not chaser.done]
+        for anim in animations:
+            anim.update(pds.rgb)
+        animations = [anim for anim in animations if not anim.done]
         pds.update()
         sleep(1.0/FRAMERATE)
 
