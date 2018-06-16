@@ -12,7 +12,7 @@ from Queue import Queue
 
 # Constants
 
-FRAMERATE = 30.0
+FRAMERATE = 28.0
 NUM_LIGHTS = 50
 PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_Adapter-event-joystick"
 
@@ -26,17 +26,44 @@ class Animation(object):
         raise NotImplementedError
 
 class Flash(Animation):
-    def __init__(self, decay=0.85):
+    def __init__(self, hue, offset=0, stride=1, decay=0.85):
         Animation.__init__(self)
-        self._decay = 0.85
+        self._hue = hue
+        self._offset = offset
+        self._stride = stride
+        self._decay = decay
         self._val = 1.0
 
     def update(self, pixels):
-        adjust = self._val
+        view = pixels[self._offset::self._stride]
+        color = colorsys.hsv_to_rgb(self._hue, 0.5, self._val)
+        view += color
         self._val *= self._decay
         if self._val <= 0.01:
             self.done = True
-        return pixels + adjust
+
+class Seizure(Animation):
+    def __init__(self, color, speed=4, dur=16):
+        Animation.__init__(self)
+        self._color = color
+        self._speed = speed
+        self._dur = dur
+        self._iter = 0
+        self._fct = 0
+
+    def update(self, pixels):
+        if self._iter >= self._dur:
+            self.done = True
+            return
+
+        stride = self._iter % 2 
+        pixels[0::2] = self._color if stride == 0 else (0,0,0) 
+        pixels[1::2] = self._color if stride == 1 else (0,0,0)
+
+        self._fct += 1
+        if self._fct >= self._speed:
+            self._fct = 0
+            self._iter += 1
 
 class Chaser(Animation):
     def __init__(self, hue, speed):
@@ -46,20 +73,22 @@ class Chaser(Animation):
         self._fidx = 0.0
 
     def update(self, pixels):
-        if self._idx >= NUM_LIGHTS:
-            self.done = True 
-            return pixels
+        tail = 8
 
-        for i in range(3):
+        if self._idx >= NUM_LIGHTS + tail:
+            self.done = True 
+            return
+
+        for i in range(tail):
             idx = self._idx - i
-            if idx < 0:
+            if idx < 0 or idx >= NUM_LIGHTS:
                 continue
-            val = 1.0 - (i * 0.4)
-            color = colorsys.hsv_to_rgb(self._hue, 1, val)
+            val = pow(0.7,i)
+            color = colorsys.hsv_to_rgb(self._hue, 1.0, val)
             pixels[idx] = color
 
         self._fidx += self._speed
-        return pixels
+        return
 
     @property
     def _idx(self):
@@ -89,12 +118,15 @@ def process_inputs(inputs):
     left = inputs.get(Button.LEFT, False)
     right = inputs.get(Button.RIGHT, False)
 
-    if up:
+    if up and down:
+        animations.append(Flash(0,1,2)) 
+    elif up:
         animations.append(Chaser(0.0, 0.5))
-    if down:
+    elif down:
         animations.append(Chaser(0.2, 0.75))
+
     if left and right:
-        animations.append(Flash())
+        animations.append(Flash(0.3,0,2))
     elif left:
         animations.append(Chaser(0.4, 1.0))
     elif right:
@@ -104,10 +136,8 @@ def process_inputs(inputs):
 
 def render(pds, animations):
     pds.clear()
-    rgb = pds.rgb
     for anim in animations:
-        rgb = anim.update(rgb)
-    pds.rgb = rgb
+        anim.update(pds.rgb)
     pds.update()
 
 def main():
