@@ -1,0 +1,12 @@
+[Unit]
+Description=Whirling Dervish
+Wants=network-up.target
+
+[Service]
+Type=idle
+ExecStart=/home/pi/.pyenv/versions/dervish/bin/python /usr/local/bin/whirl
+RestartSec=5s
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
