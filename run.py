@@ -12,7 +12,7 @@ from Queue import Queue
 
 # Constants
 
-FRAMERATE = 28.0
+FRAMERATE = 25.0
 NUM_LIGHTS = 50
 PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_Adapter-event-joystick"
 
@@ -36,7 +36,7 @@ class Flash(Animation):
 
     def update(self, pixels):
         view = pixels[self._offset::self._stride]
-        color = colorsys.hsv_to_rgb(self._hue, 0.5, self._val)
+        color = colorsys.hsv_to_rgb(self._hue, 0.3, self._val)
         view += color
         self._val *= self._decay
         if self._val <= 0.01:
@@ -71,23 +71,25 @@ class Chaser(Animation):
         self._hue = hue
         self._speed = speed
         self._fidx = 0.0
+        self._dir = 1
 
     def update(self, pixels):
         tail = 8
-
-        if self._idx >= NUM_LIGHTS + tail:
+        if self._idx >= NUM_LIGHTS - 1:
+            self._dir = -1
+        elif self._idx <= -tail and self._dir < 0:
             self.done = True 
             return
 
         for i in range(tail):
-            idx = self._idx - i
+            idx = self._idx - (i * self._dir)
             if idx < 0 or idx >= NUM_LIGHTS:
                 continue
-            val = pow(0.7,i)
+            val = pow(0.6,i)
             color = colorsys.hsv_to_rgb(self._hue, 1.0, val)
             pixels[idx] = color
 
-        self._fidx += self._speed
+        self._fidx += self._speed * self._dir
         return
 
     @property
@@ -119,18 +121,18 @@ def process_inputs(inputs):
     right = inputs.get(Button.RIGHT, False)
 
     if up and down:
-        animations.append(Flash(0,1,2)) 
+        animations.append(Flash(0.0)) 
     elif up:
-        animations.append(Chaser(0.0, 0.5))
+        animations.append(Chaser(0.125, 0.66))
     elif down:
-        animations.append(Chaser(0.2, 0.75))
+        animations.append(Chaser(0.8, 0.8))
 
     if left and right:
-        animations.append(Flash(0.3,0,2))
+        animations.append(Flash(0.3))
     elif left:
         animations.append(Chaser(0.4, 1.0))
     elif right:
-        animations.append(Chaser(0.6, 1.5))
+        animations.append(Chaser(0.6, 1.33))
 
     return animations
 
