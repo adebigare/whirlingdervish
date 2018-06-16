@@ -13,7 +13,8 @@ from Queue import Queue
 
 # Constants
 
-FRAMERATE = 25.0
+PDS_IP = "192.168.1.100"
+FRAMERATE = 30.0
 PAD_PATH = "/dev/input/by-id/usb-mayflash_limited_MAYFLASH_GameCube_Controller_Adapter-event-joystick"
 
 # Input
@@ -63,30 +64,33 @@ def render(pds, animations):
     pds.update()
 
 def main():
-    pds = PowerSupply('192.168.0.101')
+    pds = PowerSupply(PDS_IP)
     input_thread = Thread(target=input_loop)
     input_thread.daemon = True
     input_thread.start()
 
+    frame_count = 0
     animations = [Flash(0.3, 0.7, decay=0.95)]
 
     while True:
         # prune finished animations
         animations = [anim for anim in animations if not anim.done]
 
-        # get current button events
-        current_inputs = {}
-        while not inputs.empty():
-            (btn, val) = inputs.get_nowait()
-            current_inputs[btn] = val
-
-        # add any new animations based on button states
-        new_animations = process_inputs(current_inputs)
-        animations.extend(new_animations)
+        # get current button events every 3 frames
+        # (gives leeway in "double press" states)
+        if frame_count % 3 == 0:
+            current_inputs = {}
+            while not inputs.empty():
+                (btn, val) = inputs.get_nowait()
+                current_inputs[btn] = val
+            # add any new animations based on button states
+            new_animations = process_inputs(current_inputs)
+            animations.extend(new_animations)
 
         # render the animations
         render(pds, animations)
         sleep(1.0/FRAMERATE)
+        frame_count += 1
 
 if __name__== "__main__":
       main()
